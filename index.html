@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Brain Play – Arcade Collection</title>
+<style>
+    body {
+        margin: 0;
+        background: #111;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+    }
+    #menu, #howToPlay {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        z-index: 10;
+    }
+    button {
+        margin: 10px;
+        padding: 15px 30px;
+        font-size: 24px;
+        cursor: pointer;
+        background: #0a84ff;
+        border: none;
+        border-radius: 12px;
+        color: white;
+    }
+    #exitBtn {
+        position: absolute;
+        left: 10px; top: 10px;
+        padding: 10px 20px;
+        font-size: 20px;
+        background: #c0392b;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        display: none;
+        z-index: 20;
+    }
+    canvas {
+        display: none;
+        background: black;
+    }
+</style>
+</head>
+<body>
+
+<!-- ГОЛОВНЕ МЕНЮ -->
+<div id="menu">
+    <h1>🎮 Brain Play – Arcade Collection</h1>
+    <p>Виберіть гру:</p>
+    <button onclick="showControls(0)">Пінг-Понг</button>
+    <button onclick="showControls(1)">Арканоїд</button>
+    <button onclick="showControls(2)">Змійка</button>
+    <button onclick="showControls(3)">Flappy Bird</button>
+</div>
+
+<!-- ЕКРАН "ЯК КЕРУВАТИ" -->
+<div id="howToPlay" style="display:none;">
+    <h2 id="controlTitle"></h2>
+    <p id="controlText"></p>
+    <button onclick="startSelectedGame()">Почати гру</button>
+    <button onclick="returnToMenu()">⬅ Назад</button>
+</div>
+
+<button id="exitBtn" onclick="returnToMenu()">⬅ Меню</button>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+// ===================================================================
+//                      БАЗОВІ ФУНКЦІЇ
+// ===================================================================
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.onresize = resizeCanvas;
+
+const menu = document.getElementById("menu");
+const howToPlay = document.getElementById("howToPlay");
+const exitBtn = document.getElementById("exitBtn");
+
+let selectedGame = null;
+let animationID = null;
+let timers = [];
+
+function stopGame() {
+    cancelAnimationFrame(animationID);
+    timers.forEach(t => clearTimeout(t));
+    timers = [];
+    window.onkeydown = null;
+    window.onmousemove = null;
+    canvas.onclick = null;
+}
+
+function returnToMenu() {
+    stopGame();
+    menu.style.display = "flex";
+    howToPlay.style.display = "none";
+    canvas.style.display = "none";
+    exitBtn.style.display = "none";
+}
+
+function showControls(id) {
+    selectedGame = id;
+    menu.style.display = "none";
+    howToPlay.style.display = "flex";
+
+    const titles = [
+        "Пінг-Понг — керування",
+        "Арканоїд — керування",
+        "Змійка — керування",
+        "Flappy Bird — керування"
+    ];
+
+    const texts = [
+        "Керування:<br>⬆ Стрілка вверх — рух ракетки вгору<br>⬇ Стрілка вниз — рух ракетки вниз<br><br>Завдання: відбивай м'яч і перемагай!",
+        "Керування:<br>Рух платформи — мишкою<br>Відбивай м'яч і ломи всі блоки!<br><br>Рівні стають все складніші!",
+        "Керування:<br>⬆⬇⬅➡ — керування напрямком змійки<br><br>З'їдай їжу, рости та не врізайся!",
+        "Керування:<br>Пробіл — стрибок<br><br>Пролітай між трубами та не падай!"
+    ];
+
+    document.getElementById("controlTitle").innerHTML = titles[id];
+    document.getElementById("controlText").innerHTML = texts[id];
+}
+
+function startSelectedGame() {
+    howToPlay.style.display = "none";
+    exitBtn.style.display = "block";
+    canvas.style.display = "block";
+
+    stopGame();
+    if (selectedGame === 0) initPong();
+    if (selectedGame === 1) initArkanoid();
+    if (selectedGame === 2) initSnake();
+    if (selectedGame === 3) initFlappy();
+}
+
+// ===================================================================
+//                          ПІНГ-ПОНГ
+// ===================================================================
+
+let pong;
+
+function initPong() {
+    pong = {
+        ball: {x: canvas.width/2, y: canvas.height/2, vx: 6, vy: 5},
+        leftY: canvas.height/2 - 70,
+        rightY: canvas.height/2 - 70,
+        level: 1,
+        speedIncrease: 0.3
+    };
+
+    window.onkeydown = e => {
+        if (e.key === "ArrowUp") pong.leftY -= 40;
+        if (e.key === "ArrowDown") pong.leftY += 40;
+    };
+
+    gamePong();
+}
+
+function gamePong() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(20, pong.leftY, 20, 140);
+    ctx.fillRect(canvas.width - 40, pong.rightY, 20, 140);
+
+    ctx.beginPath();
+    ctx.arc(pong.ball.x, pong.ball.y, 12, 0, Math.PI*2);
+    ctx.fill();
+
+    pong.ball.x += pong.ball.vx;
+    pong.ball.y += pong.ball.vy;
+
+    if (pong.ball.y < 12 || pong.ball.y > canvas.height - 12) pong.ball.vy *= -1;
+
+    // AI суперник
+    pong.rightY += (pong.ball.y - pong.rightY - 70) * 0.07;
+
+    // Відскок
+    if (pong.ball.x < 40 && pong.ball.y > pong.leftY && pong.ball.y < pong.leftY + 140) {
+        pong.ball.vx *= -1;
+        pong.ball.vx += pong.speedIncrease;
+        pong.level++;
+    }
+
+    if (pong.ball.x > canvas.width - 40 && pong.ball.y > pong.rightY && pong.ball.y < pong.rightY + 140) {
+        pong.ball.vx *= -1;
+    }
+
+    animationID = requestAnimationFrame(gamePong);
+}
+
+// ===================================================================
+//                            АРКАНОЇД
+// ===================================================================
+
+let bricks, paddle, ball, arkLevel;
+
+function initArkanoid() {
+    arkLevel = 1;
+    loadArkanoidLevel();
+}
+
+function loadArkanoidLevel() {
+    bricks = [];
+
+    let rows = 4 + arkLevel;
+    let cols = 10;
+
+    for (let i = 0; i < rows; i++)
+        for (let j = 0; j < cols; j++)
+            bricks.push({
+                x: j * (canvas.width / cols),
+                y: i * 35,
+                w: (canvas.width / cols) - 5,
+                h: 25,
+                color: `hsl(${i*40},80%,60%)`
+            });
+
+    paddle = {x: canvas.width/2 - 75, y: canvas.height - 60, w: 150, h: 20};
+    ball = {x: canvas.width/2, y: canvas.height/2, vx: 5 + arkLevel*0.5, vy: 5};
+
+    window.onmousemove = e => paddle.x = e.clientX - 75;
+
+    gameArkanoid();
+}
+
+function gameArkanoid() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    bricks.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+    });
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, 10, 0, Math.PI*2);
+    ctx.fill();
+
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if (ball.x < 10 || ball.x > canvas.width - 10) ball.vx *= -1;
+    if (ball.y < 10) ball.vy *= -1;
+
+    if (ball.y > paddle.y - 10 &&
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.w) ball.vy *= -1;
+
+    bricks = bricks.filter(b => {
+        if (
+            ball.x > b.x && ball.x < b.x + b.w &&
+            ball.y > b.y && ball.y < b.y + b.h
+        ) {
+            ball.vy *= -1;
+            return false;
+        }
+        return true;
+    });
+
+    if (bricks.length === 0) {
+        arkLevel++;
+        loadArkanoidLevel();
+        return;
+    }
+
+    animationID = requestAnimationFrame(gameArkanoid);
+}
+
+// ===================================================================
+//                               ЗМІЙКА
+// ===================================================================
+
+let snake, dir, food, snakeSpeed;
+
+function initSnake() {
+    snakeSpeed = 150;
+    snake = [{x:5, y:5}];
+    dir = {x:1, y:0};
+    spawnFood();
+
+    window.onkeydown = e => {
+        if (e.key === "ArrowUp" && dir.y === 0) dir = {x:0, y:-1};
+        if (e.key === "ArrowDown" && dir.y === 0) dir = {x:0, y:1};
+        if (e.key === "ArrowLeft" && dir.x === 0) dir = {x:-1, y:0};
+        if (e.key === "ArrowRight" && dir.x === 0) dir = {x:1, y:0};
+    };
+
+    gameSnake();
+}
+
+function spawnFood() {
+    food = {
+        x: Math.floor(Math.random()*(canvas.width/20)),
+        y: Math.floor(Math.random()*(canvas.height/20))
+    };
+}
+
+function gameSnake() {
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    let head = {x: snake[0].x+dir.x, y: snake[0].y+dir.y};
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+        spawnFood();
+        snakeSpeed = Math.max(60, snakeSpeed - 5);
+    } else {
+        snake.pop();
+    }
+
+    ctx.fillStyle="red";
+    ctx.fillRect(food.x*20, food.y*20, 20,20);
+
+    ctx.fillStyle="lime";
+    snake.forEach(s => ctx.fillRect(s.x*20, s.y*20, 20,20));
+
+    if (
+        head.x < 0 || head.y < 0 ||
+        head.x >= canvas.width/20 ||
+        head.y >= canvas.height/20
+    ) initSnake();
+
+    timers.push(setTimeout(gameSnake, snakeSpeed));
+}
+
+// ===================================================================
+//                             FLAPPY BIRD
+// ===================================================================
+
+let fb;
+
+function initFlappy() {
+    fb = {
+        bird: {x: 200, y: 200},
+        gravity: 0,
+        pipes: [],
+        speed: 4,
+        gap: 180
+    };
+
+    createPipe();
+
+    window.onkeydown = e => {
+        if (e.key === " ") fb.gravity = -8;
+    };
+
+    gameFlappy();
+}
+
+function createPipe() {
+    let top = Math.random() * (canvas.height - fb.gap - 100) + 50;
+    fb.pipes.push({
+        x: canvas.width,
+        top: top,
+        bottom: top + fb.gap
+    });
+}
+
+function gameFlappy() {
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    fb.gravity += 0.4;
+    fb.bird.y += fb.gravity;
+
+    ctx.fillStyle="yellow";
+    ctx.fillRect(fb.bird.x, fb.bird.y, 40,40);
+
+    fb.pipes.forEach(p => {
+        ctx.fillStyle="green";
+        ctx.fillRect(p.x,0,60,p.top);
+        ctx.fillRect(p.x,p.bottom,60,canvas.height - p.bottom);
+        p.x -= fb.speed;
+    });
+
+    if (fb.pipes[0].x < -60) {
+        fb.pipes.shift();
+        createPipe();
+    }
+
+    animationID = requestAnimationFrame(gameFlappy);
+}
+
+</script>
+</body>
+</html>
